@@ -1,3 +1,4 @@
+import path from "path";
 import express from "express";
 import dotenv from "dotenv";
 import connectDB from "./db/connectDB.js";
@@ -8,7 +9,6 @@ import messageRoutes from "./routes/messageRoutes.js";
 import { v2 as cloudinary } from "cloudinary";
 import { app, server } from "./socket/socket.js";
 import job from "./cron/cron.js";
-import cors from "cors";
 
 dotenv.config();
 
@@ -16,34 +16,7 @@ connectDB();
 job.start();
 
 const PORT = process.env.PORT || 5000;
-
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "http://localhost:3000")
-    next()
-  })
-  
-  app.use(
-    cors({
-      origin: ["https://thread-link.vercel.app", "http://127.0.0.1:3000", "http://localhost:3000"],
-      methods: "GET, POST, PATCH, DELETE, PUT",
-      credentials: true,
-    })
-  )
-
-  const allowedOrigins = ['http://localhost:3000', 'https://thread-link.vercel.app'];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Allow requests with no origin (like mobile apps, curl requests)
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  }
-};
-
-app.use(cors(corsOptions));
+const __dirname = path.resolve();
 
 cloudinary.config({
 	cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -61,5 +34,15 @@ app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/messages", messageRoutes);
 
+// http://localhost:5000 => backend,frontend
+
+if (process.env.NODE_ENV === "production") {
+	app.use(express.static(path.join(__dirname, "/frontend/dist")));
+
+	// react app
+	app.get("*", (req, res) => {
+		res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+	});
+}
 
 server.listen(PORT, () => console.log(`Server started at http://localhost:${PORT}`));
